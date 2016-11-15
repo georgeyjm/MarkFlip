@@ -16,33 +16,28 @@ htmlEnd = '''</body>
 </html>
 '''
 
+headerRegex = re.compile(r'(#{1,6} *)(.*)')
 strongRegex = re.compile(r'\*{2}.+\*{2}')
 emphasisRegex = re.compile(r'[^\*\\]\*[^/]+[^\\]\*[^\*]')
 strikeRegex = re.compile(r'~{2}.+~{2}')
 
 with codecs.open(mdFileUrl,'r','utf-8') as f:
-    lines = f.readlines()
-    for line in lines:
-        line = ' '.join(line.split())
-        if not line:
-            continue
-        for match in strongRegex.findall(line):
-            line = line.replace(match, '<strong>{}</strong>'.format(match[2:-2]))
-        for match in emphasisRegex.findall(line):
-            line = line.replace(match[1:-1], '<em>{}</em>'.format(match[2:-2]))
-        for match in strikeRegex.findall(line):
-            line = line.replace(match, '<del>{}</del>'.format(match[2:-2]))
-        line = line.replace('\*','*')
-        if line[0] == '#':
-            headerNum = line.split()[0].count('#')
-            if headerNum > 6:
-                headerNum = 6
-            outData.append('<h{}>{}</h{}>'.format(headerNum, line[headerNum:], headerNum))
-        else:
-            outData.append('<p>' + line + '</p>')
+    raw = f.read()
+    for level, text in headerRegex.findall(raw):
+        originalText = level+text
+        level = level.count('#')
+        raw = raw.replace(originalText, '<h{}>{}</h{}>'.format(level,text,level))
+    for match in strongRegex.findall(raw):
+        raw = raw.replace(match, '<strong>{}</strong>'.format(match[2:-2]))
+    for match in emphasisRegex.findall(raw):
+        raw = raw.replace(match[1:-1], '<em>{}</em>'.format(match[2:-2]))
+    for match in strikeRegex.findall(raw):
+        raw = raw.replace(match, '<del>{}</del>'.format(match[2:-2]))
+    raw = raw.replace('\*','*')
+    raw = raw.replace('\n\n','<br /><br />')
+    raw = raw.replace('\n','')
 
 with codecs.open('MarkFlip.html','w','utf-8') as f:
     f.write(htmlStart)
-    for data in outData:
-        f.write('  '+data+'\n')
+    f.write(raw)
     f.write(htmlEnd)
