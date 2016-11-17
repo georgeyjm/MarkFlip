@@ -20,9 +20,16 @@ headerRegex = re.compile(r'(#{1,6} *)(.*)')
 strongRegex = re.compile(r'\*{2}.+\*{2}')
 emphasisRegex = re.compile(r'[^\*\\]\*[^/]+[^\\]\*[^\*]')
 strikeRegex = re.compile(r'~{2}.+~{2}')
+linkRegex = re.compile(r'\[([^\[]+)\]( )*\(([^\)]+)\)')
+codeInlineRegex = re.compile(r'([^\\]`)([^`\\\n]+)`')
+codeFenceRegex = re.compile(r'```([^\n]+)\n([^\\]+)```')
+escapeRegex = re.compile(r'\\([\*|\\|\`])')
+lineBreakRegex = re.compile(r'[\n]{2,}')
 
 with codecs.open(mdFileUrl,'r','utf-8') as f:
+    print('Opening file...')
     raw = f.read()
+    print('Processing data...')
     for level, text in headerRegex.findall(raw):
         originalText = level+text
         level = level.count('#')
@@ -33,11 +40,25 @@ with codecs.open(mdFileUrl,'r','utf-8') as f:
         raw = raw.replace(match[1:-1], '<em>{}</em>'.format(match[2:-2]))
     for match in strikeRegex.findall(raw):
         raw = raw.replace(match, '<del>{}</del>'.format(match[2:-2]))
-    raw = raw.replace('\*','*')
-    raw = raw.replace('\n\n','<br /><br />')
+    for display, space, link in linkRegex.findall(raw):
+        originalText = '[{}]{}({})'.format(display,space,link)
+        raw = raw.replace(originalText, '<a href=\'{}\'>{}</a>'.format(link.strip(), display.strip()))
+    for before, code in codeInlineRegex.findall(raw):
+        originalText = before[1:] + code + '`'
+        raw = raw.replace(originalText, '<code>{}</code>'.format(code.strip()))
+    for lang, code in codeFenceRegex.findall(raw):
+        originalText = '```{}\n{}```'.format(lang, code)
+        raw = raw.replace(originalText, '<pre>{}</pre>'.format(code).replace('\n','\n\n'))
+    for match in escapeRegex.findall(raw):
+        raw = raw.replace('\\{}'.format(match), match)
+    for match in lineBreakRegex.findall(raw):
+        raw = raw.replace(match, '<br />')
     raw = raw.replace('\n','')
 
 with codecs.open('MarkFlip.html','w','utf-8') as f:
+    print('Writing data...')
     f.write(htmlStart)
     f.write(raw)
     f.write(htmlEnd)
+
+print('Done!')
